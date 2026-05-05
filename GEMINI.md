@@ -99,7 +99,7 @@ If `modes/_profile.md` is missing, copy from `modes/_profile.template.md` silent
 | `data/pipeline.md` | Inbox of pending URLs |
 | `portals.yml` | Query and company config |
 | `templates/cv-template.html` | HTML template for CVs |
-| `generate-pdf.mjs` | Playwright: HTML to PDF |
+| `generate-pdf.mjs` | agent-browser: HTML to PDF |
 | `article-digest.md` | Proof points from portfolio (optional) |
 | `interview-prep/story-bank.md` | Accumulated STAR+R stories |
 | `gemini-eval.mjs` | Standalone Gemini API evaluator (no CLI required) |

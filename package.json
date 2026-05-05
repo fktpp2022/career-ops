@@ -31,10 +31,20 @@
     "url": "https://github.com/santifer/career-ops"
   },
   "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
     "dotenv": "^16.4.5",
-    "js-yaml": "^4.1.1",
-    "playwright": "^1.58.1"
+    "js-yaml": "^4.1.1"
+  },
+  "peerDependencies": {
+    "agent-browser": "*"
+  },
+  "peerDependenciesMeta": {
+    "agent-browser": {
+      "optional": false
+    }
   }
 }

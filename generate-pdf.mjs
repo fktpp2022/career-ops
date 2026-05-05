@@ -1,25 +1,45 @@
 #!/usr/bin/env node
 
 /**
- * generate-pdf.mjs — HTML → PDF via Playwright
+ * generate-pdf.mjs — HTML → PDF via agent-browser
  *
  * Usage:
  *   node career-ops/generate-pdf.mjs <input.html> <output.pdf> [--format=letter|a4]
  *
- * Requires: @playwright/test (or playwright) installed.
- * Uses Chromium headless to render the HTML and produce a clean, ATS-parseable PDF.
+ * Requires: agent-browser installed globally.
+ * Uses Chromium headless via agent-browser to render HTML and produce
+ * a clean, ATS-parseable PDF.
  */
 
-import { chromium } from 'playwright';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import { resolve, dirname } from 'path';
-import { readFile } from 'fs/promises';
-import { mkdirSync } from 'fs';
+import { readFile, writeFile, stat, mkdirSync } from 'fs/promises';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const execAsync = promisify(exec);
 
-// Ensure output directory exists (fresh setup)
 mkdirSync(resolve(__dirname, 'output'), { recursive: true });
+
+const AGENT_BROWSER_TIMEOUT = 60000;
+
+async function runAgentBrowser(args, options = {}) {
+  const cmd = `agent-browser ${args}`;
+  try {
+    const { stdout, stderr } = await execAsync(cmd, {
+      timeout: options.timeout || AGENT_BROWSER_TIMEOUT,
+      maxBuffer: 10 * 1024 * 1024,
+    });
+    return { stdout: stdout.trim(), stderr: stderr.trim(), success: true };
+  } catch (err) {
+    return {
+      stdout: err.stdout?.trim() || '',
+      stderr: err.stderr?.trim() || err.message,
+      success: false,
+    };
+  }
+}
 
 /**
  * Normalize text for ATS compatibility by converting problematic Unicode.
@@ -74,10 +94,39 @@ function normalizeTextForATS(html) {
   }
 }
 
+/**
+ * Inject CSS @page rules for PDF formatting.
+ * agent-browser doesn't support PDF options like Playwright,
+ * so we inject CSS to control page size, margins, etc.
+ */
+function injectPrintCSS(html, format) {
+  const pageSize = format === 'letter' ? 'letter' : 'a4';
+  const margin = '0.6in';
+
+  const printCSS = `
+@media print {
+  @page {
+    size: ${pageSize};
+    margin: ${margin};
+  }
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+`;
+
+  if (html.includes('</head>')) {
+    return html.replace('</head>', `<style>${printCSS}</style></head>`);
+  } else if (html.includes('<body')) {
+    return html.replace('<body', `<style>${printCSS}</style><body`);
+  }
+  return `<style>${printCSS}</style>` + html;
+}
+
 async function generatePDF() {
   const args = process.argv.slice(2);
 
-  // Parse arguments
   let inputPath, outputPath, format = 'a4';
 
   for (const arg of args) {
@@ -98,7 +147,6 @@ async function generatePDF() {
   inputPath = resolve(inputPath);
   outputPath = resolve(outputPath);
 
-  // Validate format
   const validFormats = ['a4', 'letter'];
   if (!validFormats.includes(format)) {
     console.error(`Invalid format "${format}". Use: ${validFormats.join(', ')}`);
@@ -109,22 +157,18 @@ async function generatePDF() {
   console.log(`📁 Output: ${outputPath}`);
   console.log(`📏 Format: ${format.toUpperCase()}`);
 
-  // Read HTML to inject font paths as absolute file:// URLs
   let html = await readFile(inputPath, 'utf-8');
 
-  // Resolve font paths relative to career-ops/fonts/
   const fontsDir = resolve(__dirname, 'fonts');
   html = html.replace(
     /url\(['"]?\.\/fonts\//g,
     `url('file://${fontsDir}/`
   );
-  // Close any unclosed quotes from the replacement (handles all font formats)
   html = html.replace(
     /file:\/\/([^'")]+)\.(woff2?|ttf|otf)['"]?\)/g,
     `file://$1.$2')`
   );
 
-  // Normalize text for ATS compatibility (issue #1)
   const normalized = normalizeTextForATS(html);
   html = normalized.html;
   const totalReplacements = Object.values(normalized.replacements).reduce((a, b) => a + b, 0);
@@ -133,47 +177,50 @@ async function generatePDF() {
     console.log(`🧹 ATS normalization: ${totalReplacements} replacements (${breakdown})`);
   }
 
-  const browser = await chromium.launch({ headless: true });
+  html = injectPrintCSS(html, format);
+
+  const tempHtmlPath = resolve(__dirname, 'output', `temp-pdf-${Date.now()}.html`);
+  await writeFile(tempHtmlPath, html, 'utf-8');
+
+  const fileUrl = `file://${tempHtmlPath}`;
+
   try {
-    const page = await browser.newPage();
+    const openResult = await runAgentBrowser(`--allow-file-access open "${fileUrl}"`);
+    if (!openResult.success) {
+      throw new Error(`Failed to open HTML: ${openResult.stderr}`);
+    }
 
-    // Set content with file base URL for any relative resources
-    await page.setContent(html, {
-      waitUntil: 'networkidle',
-      baseURL: `file://${dirname(inputPath)}/`,
-    });
+    await runAgentBrowser('wait --load networkidle');
+    await runAgentBrowser('wait 2000');
 
-    // Wait for fonts to load
-    await page.evaluate(() => document.fonts.ready);
+    await runAgentBrowser(`eval 'document.fonts.ready'`);
+    await runAgentBrowser('wait 1000');
 
-    // Generate PDF
-    const pdfBuffer = await page.pdf({
-      format: format,
-      printBackground: true,
-      margin: {
-        top: '0.6in',
-        right: '0.6in',
-        bottom: '0.6in',
-        left: '0.6in',
-      },
-      preferCSSPageSize: false,
-    });
+    const pdfResult = await runAgentBrowser(`pdf "${outputPath}"`);
+    if (!pdfResult.success) {
+      throw new Error(`PDF generation failed: ${pdfResult.stderr}`);
+    }
 
-    // Write PDF
-    const { writeFile } = await import('fs/promises');
-    await writeFile(outputPath, pdfBuffer);
+    await runAgentBrowser('close');
 
-    // Count pages (approximate from PDF structure)
-    const pdfString = pdfBuffer.toString('latin1');
-    const pageCount = (pdfString.match(/\/Type\s*\/Page[^s]/g) || []).length;
+    const outputStats = await stat(outputPath);
+    const pdfContent = await readFile(outputPath, 'latin1');
+    const pageCount = (pdfContent.match(/\/Type\s*\/Page[^s]/g) || []).length;
 
     console.log(`✅ PDF generated: ${outputPath}`);
     console.log(`📊 Pages: ${pageCount}`);
-    console.log(`📦 Size: ${(pdfBuffer.length / 1024).toFixed(1)} KB`);
+    console.log(`📦 Size: ${(outputStats.size / 1024).toFixed(1)} KB`);
 
-    return { outputPath, pageCount, size: pdfBuffer.length };
+    return { outputPath, pageCount, size: outputStats.size };
+
   } finally {
-    await browser.close();
+    try {
+      const { unlink } = await import('fs/promises');
+      await unlink(tempHtmlPath);
+    } catch {
+      // Ignore cleanup errors
+    }
+    await runAgentBrowser('close').catch(() => {});
   }
 }
 
