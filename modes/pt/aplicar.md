@@ -4,8 +4,8 @@ Modo interativo para quando o candidato está preenchendo um formulário de cand
 
 ## Requisitos
 
-- **Melhor com Playwright visível**: No modo visível, o candidato vê o navegador e Claude pode interagir com a página.
-- **Sem Playwright**: o candidato compartilha um screenshot ou cola as perguntas manualmente.
+- **Melhor com agent-browser visível**: No modo visível, o candidato vê o navegador e Claude pode interagir com a página.
+- **Sem agent-browser**: o candidato compartilha um screenshot ou cola as perguntas manualmente.
 
 ## Workflow
 
@@ -22,9 +22,9 @@ Modo interativo para quando o candidato está preenchendo um formulário de cand
 
 ## Passo 1 -- Detectar a vaga
 
-**Com Playwright:** Tirar snapshot da página ativa. Ler título, URL e conteúdo visível.
+**Com agent-browser:** Tirar snapshot da página ativa. Ler título, URL e conteúdo visível.
 
-**Sem Playwright:** Pedir ao candidato que:
+**Sem agent-browser:** Pedir ao candidato que:
 - Compartilhe um screenshot do formulário (o Read tool lê imagens)
 - Ou cole as perguntas do formulário como texto
 - Ou diga empresa + vaga para buscarmos o contexto

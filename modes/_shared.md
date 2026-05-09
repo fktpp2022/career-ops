@@ -120,12 +120,12 @@ After detecting archetype, read `modes/_profile.md` for the user's specific fram
 |------|-----|
 | WebSearch | Comp research, trends, company culture, LinkedIn contacts, fallback for JDs |
 | WebFetch | Fallback for extracting JDs from static pages |
-| Playwright | Verify offers (browser_navigate + browser_snapshot). **NEVER 2+ agents with Playwright in parallel.** |
+| agent-browser | Verify offers, extract JDs from SPAs, form automation, PDF generation. Commands: `agent-browser open`, `agent-browser snapshot -i`, `agent-browser pdf`, `agent-browser fill/click`. **NEVER 2+ agents with agent-browser in parallel.** |
 | Read | cv.md, _profile.md, article-digest.md, cv-template.html |
 | Write | Temporary HTML for PDF, applications.md, reports .md |
 | Edit | Update tracker |
 | Canva MCP | Optional visual CV generation. Duplicate base design, edit text, export PDF. Requires `canva_resume_design_id` in profile.yml. |
-| Bash | `node generate-pdf.mjs` |
+| Bash | `node generate-pdf.mjs`, `agent-browser` commands |
 
 ### Time-to-offer priority
 - Working demo + metrics > perfection

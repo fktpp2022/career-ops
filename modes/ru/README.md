@@ -60,7 +60,7 @@ language:
 Сознательно не переведено, т.к. это стандартный tech-словарь:
 
 - `cv.md`, `pipeline`, `tracker`, `report`, `score`, `archetype`, `proof point`
-- Имена инструментов (`Playwright`, `WebSearch`, `WebFetch`, `Read`, `Write`, `Edit`, `Bash`)
+- Имена инструментов (`agent-browser`, `WebSearch`, `WebFetch`, `Read`, `Write`, `Edit`, `Bash`)
 - Статусы в трекере (`Evaluated`, `Applied`, `Interview`, `Offer`, `Rejected`)
 - Код, пути, команды
 

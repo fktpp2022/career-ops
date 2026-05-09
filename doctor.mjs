@@ -8,6 +8,10 @@
 import { existsSync, mkdirSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = __dirname;
@@ -41,25 +45,37 @@ function checkDependencies() {
   };
 }
 
-async function checkPlaywright() {
+async function checkAgentBrowser() {
   try {
-    const { chromium } = await import('playwright');
-    const execPath = chromium.executablePath();
-    if (existsSync(execPath)) {
-      return { pass: true, label: 'Playwright chromium installed' };
+    const { stdout, stderr } = await execAsync('agent-browser --version', {
+      timeout: 10000,
+    });
+    const version = (stdout || stderr || '').trim();
+    if (version) {
+      try {
+        await execAsync('agent-browser doctor', { timeout: 15000 });
+        return { pass: true, label: `agent-browser installed (${version})` };
+      } catch {
+        return {
+          pass: false,
+          label: 'agent-browser installed but browser not ready',
+          fix: 'Run: agent-browser install',
+        };
+      }
     }
-    return {
-      pass: false,
-      label: 'Playwright chromium not installed',
-      fix: 'Run: npx playwright install chromium',
-    };
   } catch {
-    return {
-      pass: false,
-      label: 'Playwright chromium not installed',
-      fix: 'Run: npx playwright install chromium',
-    };
+    // agent-browser not found
   }
+  return {
+    pass: false,
+    label: 'agent-browser not installed',
+    fix: [
+      'Install agent-browser globally:',
+      '  npm install -g agent-browser',
+      '  (or: brew install agent-browser, cargo install agent-browser)',
+      'Then run: agent-browser install',
+    ],
+  };
 }
 
 function checkCv() {
@@ -156,7 +172,7 @@ async function main() {
   const checks = [
     checkNodeVersion(),
     checkDependencies(),
-    await checkPlaywright(),
+    await checkAgentBrowser(),
     checkCv(),
     checkProfile(),
     checkPortals(),

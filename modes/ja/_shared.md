@@ -217,7 +217,7 @@ skill はすべてのターゲット求人を同等の注意で扱う。プラ�
 |------|-----|
 | WebSearch | 報酬調査、トレンド、企業カルチャー、LinkedIn コンタクト、求人記述のフォールバック |
 | WebFetch | 静的ページから求人記述を抽出するためのフォールバック |
-| Playwright | 求人がまだアクティブか検証（browser_navigate + browser_snapshot）、SPA からの記述抽出。**クリティカル：Playwright を使う 2 つ以上のエージェントを並列起動しない — 同じブラウザインスタンスを共有するため** |
+| agent-browser | 求人がまだアクティブか検証（agent-browser open + agent-browser snapshot -i）、SPA からの記述抽出、PDF 生成。**クリティカル：agent-browser を使う 2 つ以上のエージェントを並列起動しない — 同じブラウザインスタンスを共有するため** |
 | Read | cv.md、_profile.md、article-digest.md、cv-template.html |
 | Write | PDF 用の一時 HTML、applications.md、reports .md |
 | Edit | tracker の更新 |
